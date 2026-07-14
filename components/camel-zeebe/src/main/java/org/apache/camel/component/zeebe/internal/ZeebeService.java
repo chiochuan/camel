@@ -29,6 +29,7 @@ import io.camunda.zeebe.client.api.worker.JobHandler;
 import io.camunda.zeebe.client.api.worker.JobWorker;
 import io.camunda.zeebe.client.impl.oauth.OAuthCredentialsProvider;
 import io.camunda.zeebe.client.impl.oauth.OAuthCredentialsProviderBuilder;
+import io.camunda.zeebe.client.ZeebeClientBuilder;
 import io.camunda.zeebe.gateway.protocol.GatewayGrpc;
 import io.camunda.zeebe.gateway.protocol.GatewayOuterClass;
 import io.grpc.ManagedChannel;
@@ -74,30 +75,29 @@ public class ZeebeService {
 
         objectMapper = new ObjectMapper();
     }
-
+    
     public void doStart() {
         String gatewayAddress = String.format("%s:%d", gatewayHost, gatewayPort);
 
-        if (zeebeClient == null) {
-            if (clientId != null) {
-                OAuthCredentialsProvider credentialsProvider = new OAuthCredentialsProviderBuilder()
-                        .authorizationServerUrl(oAuthAPI)
-                        .audience(gatewayAddress)
-                        .clientId(clientId)
-                        .clientSecret(clientSecret)
-                        .build();
+        ZeebeClientBuilder builder = ZeebeClient.newClientBuilder()
+                .gatewayAddress(gatewayAddress);
 
-                zeebeClient = ZeebeClient.newClientBuilder()
-                        .gatewayAddress(gatewayAddress)
-                        .credentialsProvider(credentialsProvider)
-                        .build();
-            } else {
-                zeebeClient = ZeebeClient.newClientBuilder()
-                        .gatewayAddress(gatewayAddress)
-                        .usePlaintext()
-                        .build();
-            }
+        if (clientId != null) {
+            OAuthCredentialsProvider credentialsProvider = new OAuthCredentialsProviderBuilder()
+                    .authorizationServerUrl(oAuthAPI)
+                    .audience(gatewayAddress)
+                    .clientId(clientId)
+                    .clientSecret(clientSecret)
+                    .build();
+            builder.credentialsProvider(credentialsProvider);
         }
+
+        if (usePlaintext) {
+            builder.usePlaintext();
+        }
+
+        zeebeClient = builder.build();
+
         if (managedChannel == null) {
             managedChannel = ManagedChannelBuilder.forAddress(gatewayHost, gatewayPort)
                     .usePlaintext()
